@@ -5,20 +5,20 @@ const char htmlPage[] PROGMEM = R"rawliteral(
 <head>
     <title>Arduino GIGA PID Controller</title>
     <script>
-        function updateData() {
+        function getSensor() {
             fetch('/data')
             .then(response => response.text())
             .then(data => {
                 document.getElementById("sensorValue").innerText = data;
             });
         }
-        setInterval(updateData, 500);
+        setInterval(getSensor, 500);
 
-        function sendPidData() {
+        function sendData() {
             let kp = document.getElementById("kp").value;
             let ki = document.getElementById("ki").value;
             let kd = document.getElementById("kd").value;
-            let sp = document.getElementById("setpoint").value;
+            let sp = document.getElementById("sp").value;
 
             let query = "/update?kp=" + encodeURIComponent(kp) +
                         "&ki=" + encodeURIComponent(ki) +
@@ -60,9 +60,9 @@ button {
       <p>Kp: <input id="kp" type="number" step="0.01" value="1.0"></p>
       <p>Ki: <input id="ki" type="number" step="0.01" value="0.0"></p>
       <p>Kd: <input id="kd" type="number" step="0.01" value="0.0"></p>
-      <p>Setpoint: <input id="setpoint" type="number" step="0.01" value="512.0"></p>
+      <p>Setpoint: <input id="sp" type="number" step="0.01" value="512.0"></p>
 
-      <button onclick="sendPidData()">Send Updates</button>
+      <button onclick="sendData()">Send Updates</button>
 
       <p>Live sensor value on A0: <span id="sensorValue">0</span></p>
       <p id="status">Waiting...</p>
