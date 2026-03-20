@@ -1,3 +1,6 @@
+#pragma once
+#include <Arduino.h>
+
 // The webpage, stored in program memory
 const char htmlPage[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
