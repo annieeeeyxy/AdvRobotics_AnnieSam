@@ -1,0 +1,6 @@
+{
+  "platformio-ide.defaultEnv": "giga_r1_wifi",
+  "files.exclude": {
+    "**/.pio": true
+  }
+}

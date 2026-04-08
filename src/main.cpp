@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <Wire.h>
 #include "HUSKYLENS.h"
 #include <Servo.h>
@@ -17,7 +18,7 @@ Servo escMotor;     // ESC motor
 
 /**************** PINS ****************/
 const int SERVO_PIN = 7;
-const int ESC_PIN   = 6;
+const int ESC_PIN = 6;
 
 /**************** PID ****************/
 float Kp = 0.35;
@@ -31,7 +32,7 @@ unsigned long lastTime = 0;
 /**************** SETTINGS ****************/
 int servoCenter = 90;
 int imageCenter = 160;
-int motorSpeed = 90;      // initial motor speed
+int motorSpeed = 90;  // initial motor speed
 bool emergencyStop = false;
 
 /**********************************************************
@@ -52,6 +53,12 @@ String makePage() {
 
   page += "<script>";
   page += "function showSpeed(val){document.getElementById('speedText').innerHTML=val;}";
+  page += "document.addEventListener('keydown', function(event) {";
+  page += "  if (event.code === 'Space') {";
+  page += "    event.preventDefault();";
+  page += "    window.location.href = '/stop';";
+  page += "  }";
+  page += "});";
   page += "</script>";
 
   page += "</head><body>";
@@ -66,13 +73,16 @@ String makePage() {
   page += (emergencyStop ? "ON" : "OFF");
   page += "</p>";
 
+  page += "<p><b>Press SPACE for Emergency Stop</b></p>";
+
   page += "<form action='/set'>";
   page += "Kp: <input name='kp' value='" + String(Kp, 2) + "'><br>";
   page += "Ki: <input name='ki' value='" + String(Ki, 2) + "'><br>";
   page += "Kd: <input name='kd' value='" + String(Kd, 2) + "'><br><br>";
 
   page += "Motor Speed:<br>";
-  page += "<input type='range' name='speed' min='0' max='180' value='" + String(motorSpeed) + "' oninput='showSpeed(this.value)'><br><br>";
+  page += "<input type='range' name='speed' min='0' max='180' value='" + String(motorSpeed) +
+          "' oninput='showSpeed(this.value)'><br><br>";
 
   page += "<input type='submit' value='Update'>";
   page += "</form><br>";
@@ -92,7 +102,6 @@ String makePage() {
 
 /**********************************************************
    Get value from URL
-   Example: if URL has kp=0.5, getValue(req, "kp") returns "0.5"
 **********************************************************/
 String getValue(String req, String name) {
   int start = req.indexOf(name + "=");
@@ -119,7 +128,7 @@ void handleClient(WiFiClient& client) {
   if (req.indexOf("/stop") != -1) {
     emergencyStop = true;
     steerServo.write(servoCenter);
-    escMotor.write(90);   // neutral / stop
+    escMotor.write(90);  // neutral / stop
   }
 
   // RESUME
@@ -170,7 +179,8 @@ void setup() {
   int status = WiFi.beginAP(WIFI_SSID, WIFI_PASS);
   if (status != WL_AP_LISTENING) {
     Serial.println("AP FAIL");
-    while (1);
+    while (1) {
+    }
   }
 
   server.begin();
@@ -187,7 +197,7 @@ void setup() {
 
   // ESC
   escMotor.attach(ESC_PIN);
-  escMotor.write(motorSpeed);   // initial = 90
+  escMotor.write(motorSpeed);  // initial = 90
 
   // HUSKYLENS
   while (!huskylens.begin(Wire)) {

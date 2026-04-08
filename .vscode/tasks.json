@@ -1,0 +1,84 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PlatformIO: Build",
+      "type": "shell",
+      "command": "${env:HOME}/.platformio/penv/bin/pio",
+      "args": [
+        "run"
+      ],
+      "options": {
+        "env": {
+          "PLATFORMIO_CORE_DIR": "${workspaceFolder}/.pio-core"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PlatformIO: Upload",
+      "type": "shell",
+      "command": "${env:HOME}/.platformio/penv/bin/pio",
+      "args": [
+        "run",
+        "-t",
+        "upload"
+      ],
+      "options": {
+        "env": {
+          "PLATFORMIO_CORE_DIR": "${workspaceFolder}/.pio-core"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PlatformIO: Upload Filesystem",
+      "type": "shell",
+      "command": "${env:HOME}/.platformio/penv/bin/pio",
+      "args": [
+        "run",
+        "-t",
+        "uploadfs"
+      ],
+      "options": {
+        "env": {
+          "PLATFORMIO_CORE_DIR": "${workspaceFolder}/.pio-core"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PlatformIO: Monitor",
+      "type": "shell",
+      "command": "${env:HOME}/.platformio/penv/bin/pio",
+      "args": [
+        "device",
+        "monitor",
+        "--baud",
+        "115200"
+      ],
+      "options": {
+        "env": {
+          "PLATFORMIO_CORE_DIR": "${workspaceFolder}/.pio-core"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PlatformIO: Clean",
+      "type": "shell",
+      "command": "${env:HOME}/.platformio/penv/bin/pio",
+      "args": [
+        "run",
+        "-t",
+        "clean"
+      ],
+      "options": {
+        "env": {
+          "PLATFORMIO_CORE_DIR": "${workspaceFolder}/.pio-core"
+        }
+      },
+      "problemMatcher": []
+    }
+  ]
+}
