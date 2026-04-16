@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nimbus PID Dashboard Preview</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d9e0e6;
+      --text: #1f2933;
+      --muted: #5b6875;
+      --accent: #2f6ea3;
+      --danger: #c73b3b;
+      --success: #2f7d4f;
+      --shadow: 0 8px 24px rgba(31, 41, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    .hero {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    h1 {
+      margin: 10px 0 8px;
+      font-size: 34px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 18px;
+      text-align: left;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      margin-top: 8px;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .value.small {
+      font-size: 22px;
+    }
+
+    .status-on {
+      color: var(--danger);
+    }
+
+    .status-off {
+      color: var(--success);
+    }
+
+    .panel {
+      padding: 22px;
+      margin-top: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+
+    .panel-copy {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      text-align: left;
+    }
+
+    .field span {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: bold;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(47, 110, 163, 0.12);
+    }
+
+    .slider-wrap {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #f8fafb;
+      border: 1px solid var(--line);
+      text-align: left;
+    }
+
+    .slider-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .slider-top strong {
+      font-size: 16px;
+    }
+
+    .speed-badge {
+      min-width: 64px;
+      text-align: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #e7eef5;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .danger {
+      background: linear-gradient(135deg, #ff7b72, #ef4444);
+      color: white;
+    }
+
+    .success {
+      background: linear-gradient(135deg, #4ade80, #16a34a);
+      color: white;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f8fafb;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      border: 1px solid var(--line);
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        padding: 16px 12px 28px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .hero,
+      .panel,
+      .card {
+        border-radius: 14px;
+      }
+
+      .slider-top {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="eyebrow">Nimbus</div>
+      <h1>PID Line Tracking Dashboard</h1>
+      <p>Clean control page for tuning steering response, setting motor speed, and managing safety.</p>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">Kp</div>
+          <div class="value">0.35</div>
+        </div>
+        <div class="card">
+          <div class="label">Ki</div>
+          <div class="value">0.00</div>
+        </div>
+        <div class="card">
+          <div class="label">Kd</div>
+          <div class="value">0.15</div>
+        </div>
+        <div class="card">
+          <div class="label">Motor Speed</div>
+          <div class="value small"><span id="speedText">90</span> / 180</div>
+        </div>
+        <div class="card">
+          <div class="label">Emergency Stop</div>
+          <div class="value small status-off">READY</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Control Tuning</h2>
+      <p class="panel-copy">Static preview of the board-hosted page. The slider below updates visually so you can inspect the layout.</p>
+
+      <form action="#">
+        <div class="field-grid">
+          <label class="field">
+            <span>Proportional Gain</span>
+            <input type="text" value="0.35">
+          </label>
+          <label class="field">
+            <span>Integral Gain</span>
+            <input type="text" value="0.00">
+          </label>
+          <label class="field">
+            <span>Derivative Gain</span>
+            <input type="text" value="0.15">
+          </label>
+        </div>
+
+        <div class="slider-wrap">
+          <div class="slider-top">
+            <strong>Motor Speed</strong>
+            <div id="speedBadge" class="speed-badge">90</div>
+          </div>
+          <input id="speedSlider" type="range" min="0" max="180" value="90">
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="button">Apply Settings</button>
+        </div>
+      </form>
+
+      <div class="actions">
+        <button class="btn danger" type="button">Emergency Stop</button>
+        <button class="btn success" type="button">Resume Drive</button>
+      </div>
+
+      <div class="footer-note">
+        Pressing space on the real device page will trigger emergency stop. This local preview is only for appearance.
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const speedSlider = document.getElementById("speedSlider");
+    const speedText = document.getElementById("speedText");
+    const speedBadge = document.getElementById("speedBadge");
+
+    function showSpeed(value) {
+      speedText.textContent = value;
+      speedBadge.textContent = value;
+    }
+
+    speedSlider.addEventListener("input", function () {
+      showSpeed(this.value);
+    });
+  </script>
+</body>
+</html>
