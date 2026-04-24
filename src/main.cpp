@@ -3,6 +3,7 @@
 #include <Servo.h>
 #include <WiFi.h>
 #include <RPLidar.h>
+#include "imu_i2c_driver.hpp"
 
 /************ WiFi ************/
 #define WIFI_SSID "GIGA_PID"
@@ -16,6 +17,7 @@ HUSKYLENS husky;
 Servo steerServo;
 Servo escMotor;
 RPLidar lidar;
+imu_measurement_t imuData;
 
 /************ Pins ************/
 const int SERVO_PIN = 7;
@@ -47,6 +49,10 @@ unsigned long lastSerialReport = 0;
 const float FRONT_STOP_DIST = 900.0;   // mm
 const float FRONT_HALF_ANGLE = 35.0;   // only react to +/-35 degrees in front
 const unsigned long SERIAL_REPORT_INTERVAL = 500;   // print LiDAR status every 0.5 seconds
+
+/************ IMU ************/
+const unsigned long IMU_REPORT_INTERVAL = 250;   // print IMU status every 0.25 seconds
+unsigned long lastImuReport = 0;
 
 /************ Avoidance ************/
 enum Mode {
@@ -95,6 +101,43 @@ int chooseAvoidSteer() {
   if (frontAngle >= 360.0 - FRONT_HALF_ANGLE) return AVOID_RIGHT_STEER;
   if (frontAngle <= FRONT_HALF_ANGLE) return AVOID_LEFT_STEER;
   return AVOID_LEFT_STEER;
+}
+
+void reportImu() {
+  unsigned long now = millis();
+  if (now - lastImuReport < IMU_REPORT_INTERVAL) return;
+  lastImuReport = now;
+
+  if (IMU_I2C_ReadAll(&imuData) != 0) {
+    Serial.println("[IMU] read failed");
+    return;
+  }
+
+  Serial.print("[IMU] accel(g) x=");
+  Serial.print(imuData.accel[0], 3);
+  Serial.print(" y=");
+  Serial.print(imuData.accel[1], 3);
+  Serial.print(" z=");
+  Serial.print(imuData.accel[2], 3);
+
+  Serial.print(" | gyro(rad/s) x=");
+  Serial.print(imuData.gyro[0], 3);
+  Serial.print(" y=");
+  Serial.print(imuData.gyro[1], 3);
+  Serial.print(" z=");
+  Serial.print(imuData.gyro[2], 3);
+
+  Serial.print(" | euler(deg) roll=");
+  Serial.print(imuData.euler[0], 1);
+  Serial.print(" pitch=");
+  Serial.print(imuData.euler[1], 1);
+  Serial.print(" yaw=");
+  Serial.print(imuData.euler[2], 1);
+
+  Serial.print(" | temp(C)=");
+  Serial.print(imuData.baro[1], 1);
+  Serial.print(" | motor=");
+  Serial.println(motorSpeed);
 }
 
 /************************************************
@@ -421,7 +464,8 @@ void setup() {
   server.begin();
 
   // I2C
-  Wire.begin();
+  IIC_Init();
+  IMU_I2C_ReadVersion();
 
   // servo + ESC
   steerServo.attach(SERVO_PIN);
@@ -460,6 +504,8 @@ void loop() {
   if (client) {
     handleClient(client);
   }
+
+  reportImu();
 
   if (emergencyStop) {
     setSteeringServo(servoCenter);
