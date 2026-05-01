@@ -6,6 +6,10 @@
 
 #define IMU_I2C_ADDRESS 0x23
 
+#ifndef IMU_REGISTER_READ_DELAY_MS
+#define IMU_REGISTER_READ_DELAY_MS 8
+#endif
+
 /**
  * @brief 将寄存器中的两个字节转换为有符号 16 位值
  *        Convert two bytes from register to signed 16-bit integer.
@@ -317,18 +321,23 @@ int IMU_I2C_ReadAll(imu_measurement_t *out)
     if (IMU_I2C_ReadAccelerometer(out->accel) != 0) {
         return -1;
     }
+    delay(IMU_REGISTER_READ_DELAY_MS);
     if (IMU_I2C_ReadGyroscope(out->gyro) != 0) {
         return -1;
     }
+    delay(IMU_REGISTER_READ_DELAY_MS);
     if (IMU_I2C_ReadMagnetometer(out->mag) != 0) {
         return -1;
     }
+    delay(IMU_REGISTER_READ_DELAY_MS);
     if (IMU_I2C_ReadQuaternion(out->quat) != 0) {
         return -1;
     }
+    delay(IMU_REGISTER_READ_DELAY_MS);
     if (IMU_I2C_ReadEuler(out->euler) != 0) {
         return -1;
     }
+    delay(IMU_REGISTER_READ_DELAY_MS);
     if (IMU_I2C_ReadBarometer(out->baro) != 0) {
         return -1;
     }
