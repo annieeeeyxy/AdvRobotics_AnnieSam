@@ -8,10 +8,10 @@
 #include "motor_control.h"
 #include "state.h"
 
-static float smoothedLineOutput = 0.0;
 static int lockedAvoidSteer = AVOID_LEFT_STEER;
 static bool avoidSteerLocked = false;
 static unsigned long lastImuFallbackPrintMs = 0;
+static unsigned long yellowLineLostStartMs = 0;
 
 static int chooseAvoidSteer() {
   if (frontAngle >= 360.0 - FRONT_HALF_ANGLE) return AVOID_RIGHT_STEER;
@@ -20,7 +20,7 @@ static int chooseAvoidSteer() {
 }
 
 static void driveStraightWithImu() {
-  if (!isImuReady()) {
+  if (imuReadOk != true) {
     setSteeringServo(servoCenter);
     setEscSpeed(motorSpeed);
     return;
@@ -66,31 +66,59 @@ static void driveStraightWithoutImu() {
   }
 }
 
-static void followLine() {
-  float error = 0.0;
-  if (!readLineError(error)) return;
+static void followYellowLine() {
+  YellowLineBlock block;
+  int error = 0;
+  if (!readYellowLineBlock(block, error)) {
+    unsigned long now = millis();
+    if (yellowLineLostStartMs == 0) {
+      yellowLineLostStartMs = now;
+    }
 
-  if (abs(error) < LINE_ERROR_DEADBAND_PIXELS) {
-    error = 0.0;
+    if (now - yellowLineLostStartMs < YELLOW_LINE_LOST_GRACE_MS) {
+      setSteeringServo(servoCenter);
+      setEscSpeed(motorSpeed);
+      return;
+    }
+
+    setSteeringServo(servoCenter);
+    stopMotor();
+    mode = FIND_COLOR;
+    return;
   }
 
-  unsigned long now = millis();
-  float dt = (now - lastPidTime) / 1000.0;
-  if (dt <= 0) return;
+  yellowLineLostStartMs = 0;
 
-  errorSum += error * dt;
+  int steer = servoCenter;
+  if (abs(error) > yellowLineDeadbandPixels) {
+    unsigned long now = millis();
+    float dt = (now - lastPidTime) / 1000.0;
+    if (dt <= 0.0) {
+      dt = 0.001;
+    }
 
-  float dError = (error - lastError) / dt;
-  float output = kp * error + ki * errorSum + kd * dError;
-  smoothedLineOutput = (LINE_OUTPUT_SMOOTHING * smoothedLineOutput) + ((1.0 - LINE_OUTPUT_SMOOTHING) * output);
+    errorSum += error * dt;
+    errorSum = constrain(errorSum, -300.0, 300.0);
 
-  int targetSteer = servoCenter - smoothedLineOutput;
-  int steer = constrain(targetSteer, currentServoPosition - MAX_LINE_SERVO_STEP, currentServoPosition + MAX_LINE_SERVO_STEP);
+    float derivative = (error - lastError) / dt;
+    int correction = kp * error + ki * errorSum + kd * derivative;
+    correction = constrain(correction, -yellowLineMaxTurn, yellowLineMaxTurn);
+    steer = servoCenter + correction;
+    lastError = error;
+    lastPidTime = now;
+
+    Serial.print("[YELLOW LINE] errorX=");
+    Serial.print(error);
+    Serial.print(" correction=");
+    Serial.print(correction);
+    Serial.print(" steer=");
+    Serial.println(steer);
+  } else {
+    Serial.println("[YELLOW LINE] Line centered. Going straight.");
+  }
+
   setSteeringServo(steer);
   setEscSpeed(motorSpeed);
-
-  lastError = error;
-  lastPidTime = now;
 }
 
 static void avoidObject() {
@@ -105,7 +133,7 @@ static void avoidObject() {
   if (!frontBlocked) {
     avoidSteerLocked = false;
 
-    if (isImuReady()) {
+    if (imuReadOk == true) {
       targetYaw = getYaw();
     }
 
@@ -115,7 +143,7 @@ static void avoidObject() {
 }
 
 static void centerAfterAvoid() {
-  if (isImuReady()) {
+  if (imuReadOk == true) {
     driveStraightWithImu();
   } else {
     driveStraightWithoutImu();
@@ -128,32 +156,33 @@ static void centerAfterAvoid() {
 
   if (millis() - centerAfterAvoidStart >= CENTER_AFTER_AVOID_TIME) {
     avoidSteerLocked = false;
-    mode = FIND_LINE;
+    mode = FIND_COLOR;
   }
 }
 
-static void findLine() {
+static void findYellowLine() {
   setSteeringServo(servoCenter);
-  setEscSpeed(motorSpeed);
+  stopMotor();
 
   if (frontBlocked) {
     mode = AVOID_OBJECT;
     return;
   }
 
-  float error = 0.0;
-  if (readLineError(error)) {
+  YellowLineBlock block;
+  int error = 0;
+  if (readYellowLineBlock(block, error)) {
     resetPidState();
-    mode = FOLLOW_LINE;
+    mode = FOLLOW_COLOR;
   }
 }
 
 void setupRobotBehavior() {
   resetPidState();
-  smoothedLineOutput = 0.0;
   lockedAvoidSteer = AVOID_LEFT_STEER;
   avoidSteerLocked = false;
   lastImuFallbackPrintMs = 0;
+  yellowLineLostStartMs = 0;
 }
 
 void updateRobotBehavior() {
@@ -164,19 +193,19 @@ void updateRobotBehavior() {
     return;
   }
 
-  if (mode == FOLLOW_LINE && frontBlocked) {
+  if (ENABLE_LIDAR && mode == FOLLOW_COLOR && frontBlocked) {
     avoidSteerLocked = false;
     mode = AVOID_OBJECT;
   }
 
-  if (mode == FOLLOW_LINE) {
-    followLine();
-  } else if (mode == AVOID_OBJECT) {
+  if (mode == FOLLOW_COLOR) {
+    followYellowLine();
+  } else if (ENABLE_LIDAR && mode == AVOID_OBJECT) {
     avoidObject();
   } else if (mode == CENTER_AFTER_AVOID) {
     centerAfterAvoid();
-  } else if (mode == FIND_LINE) {
-    findLine();
+  } else if (mode == FIND_COLOR) {
+    findYellowLine();
   }
 #endif
 }

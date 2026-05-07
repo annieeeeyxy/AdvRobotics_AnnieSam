@@ -4,10 +4,10 @@
 #include <Arduino.h>
 
 enum Mode {
-  FOLLOW_LINE,
+  FOLLOW_COLOR,
   AVOID_OBJECT,
   CENTER_AFTER_AVOID,
-  FIND_LINE
+  FIND_COLOR
 };
 
 extern Mode mode;
@@ -28,6 +28,19 @@ extern bool emergencyStop;
 extern float frontDistance;
 extern float frontAngle;
 extern bool frontBlocked;
+
+extern bool yellowLineVisible;
+extern int yellowLineId;
+extern int yellowLineXCenter;
+extern int yellowLineYCenter;
+extern int yellowLineWidth;
+extern int yellowLineHeight;
+extern int yellowLineArea;
+extern int yellowLineErrorX;
+extern unsigned long yellowLineLastSeenMs;
+extern int yellowLineDeadbandPixels;
+extern float yellowLineSteerGain;
+extern int yellowLineMaxTurn;
 
 extern bool imuReadOk;
 extern float targetYaw;

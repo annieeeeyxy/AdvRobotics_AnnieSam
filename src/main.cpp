@@ -15,13 +15,17 @@ void setup() {
   delay(1500);
   Serial.println("Booting Nimbus firmware");
 
-  setupImu();
 
+  if(ENABLE_IMU){
+    setupImu();
+  }
   if (ENABLE_WEB) {
     setupWebDashboard();
   }
 
-  setupMotorControl();
+  if (ENABLE_WEB || ENABLE_ROBOT_BEHAVIOR) {
+    setupMotorControl();
+  }
 
   if (ENABLE_HUSKYLENS) {
     setupHuskylens();
@@ -34,6 +38,7 @@ void setup() {
   setupRobotBehavior();
 
   Serial.println("Ready");
+  Serial.println("Robot starts stopped. Open the web dashboard and press Enable Line Following to drive.");
   Serial.println("WiFi: " WIFI_SSID);
   Serial.println("Open: http://192.168.3.1");
 }
@@ -42,6 +47,7 @@ void loop() {
   updateImuCached();
   serviceWebDashboard();
   updateFrontLidar();
+  serviceHuskylensColorTest();
   updateRobotBehavior();
 }
 
