@@ -23,11 +23,11 @@ static bool ensureHuskylensReady() {
   }
   lastHuskyRetryMs = now;
 
-  // HUSKYLENS is wired to pins 20/21, which are Wire1 on the Arduino GIGA.
-  // The IMU also uses Wire1, so both devices share the same I2C bus.
-  Wire1.begin();
-  if (!husky.begin(Wire1)) {
-    Serial.println("[HUSKYLENS] Not found on Wire1 pins 20/21. Check I2C wiring and HUSKYLENS protocol setting.");
+  // Use the same I2C bus as the working DFRobot example: Wire.begin()
+  // and husky.begin(Wire). On this board/wiring, HUSKYLENS responds here.
+  Wire.begin();
+  if (!husky.begin(Wire)) {
+    Serial.println("[HUSKYLENS] Not found on Wire. Check I2C wiring and HUSKYLENS protocol setting.");
     return false;
   }
 
@@ -46,10 +46,7 @@ static bool ensureHuskylensReady() {
 void setupHuskylens() {
 #if ENABLE_HUSKYLENS
   Serial.println("[HUSKYLENS] Starting yellow line tracking setup");
-  Serial.print("[HUSKYLENS] Using Wire1 SDA=D");
-  Serial.print(HUSKYLENS_I2C_SDA_PIN);
-  Serial.print(" SCL=D");
-  Serial.println(HUSKYLENS_I2C_SCL_PIN);
+  Serial.println("[HUSKYLENS] Using default Wire I2C bus, matching the working HUSKYLENS example");
   Serial.println("[HUSKYLENS] On the screen: set RGB Brightness=-1, RGB Gain Lock=ON, Color Recognition mode, then Save and Exit.");
   Serial.println("[HUSKYLENS] Clear old learned colors, aim at the yellow road line, then learn yellow with the HUSKYLENS button.");
 

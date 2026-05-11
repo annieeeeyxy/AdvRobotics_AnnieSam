@@ -26,8 +26,7 @@ const int IMU_I2C_SDA_PIN = 20;        // Arduino GIGA Wire1 SDA
 const int IMU_I2C_SCL_PIN = 21;        // Arduino GIGA Wire1 SCL
 
 /************ I2C / HUSKYLENS ************/
-const int HUSKYLENS_I2C_SDA_PIN = 20;  // shared Arduino GIGA Wire1 SDA
-const int HUSKYLENS_I2C_SCL_PIN = 21;  // shared Arduino GIGA Wire1 SCL
+// HUSKYLENS uses the default Wire bus, matching the working DFRobot example.
 
 /************ Robot settings ************/
 const int DEFAULT_SERVO_CENTER = 90;
@@ -35,6 +34,7 @@ const int DEFAULT_IMAGE_CENTER = 160;
 const int ESC_NEUTRAL = 90;
 const int SERVO_MIN_ANGLE = 60;
 const int SERVO_MAX_ANGLE = 120;
+const bool START_LINE_TRACKING_ON_BOOT = true;
 
 /************ Yellow line tracking ************/
 const int YELLOW_LINE_TARGET_X = 160;       // HUSKYLENS image width is about 320 pixels

@@ -22,12 +22,13 @@ static String getValue(String req, String key) {
   return req.substring(start, end);
 }
 
-static void redirectHome(WiFiClient& client) {
-  client.println("HTTP/1.1 303 See Other");
-  client.println("Location: /");
+static void sendText(WiFiClient& client, const char* text) {
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/plain");
   client.println("Cache-Control: no-store");
   client.println("Connection: close");
   client.println();
+  client.println(text);
 }
 
 static void sendDataJson(WiFiClient& client) {
@@ -64,6 +65,10 @@ static void sendDataJson(WiFiClient& client) {
   client.print(currentServoPosition);
   client.print(",\"speed\":");
   client.print(motorSpeed);
+  client.print(",\"kp\":");
+  client.print(kp, 3);
+  client.print(",\"yellowLineMaxTurn\":");
+  client.print(yellowLineMaxTurn);
   client.print("}");
 }
 
@@ -96,9 +101,27 @@ static void sendPage(WiFiClient& client) {
 
   client.print("<script>");
   client.print("function setText(id,v){var e=document.getElementById(id);if(e)e.innerHTML=v;}");
+  client.print("function setStatus(v){setText('statusText',v);}");
   client.print("function showSpeed(v){setText('speedText',v);}");
   client.print("function showDeadband(v){setText('deadbandText',v);}");
   client.print("function showMaxTurn(v){setText('maxTurnText',v);}");
+  client.print("function showReaction(v){let k=(v/100).toFixed(2);setText('reactionText',k);document.getElementById('kpHidden').value=k;}");
+  client.print("function params(){");
+  client.print("let speed=document.getElementById('speedSlider').value;");
+  client.print("let kp=document.getElementById('kpHidden').value;");
+  client.print("let ki=document.getElementById('kiInput').value;");
+  client.print("let kd=document.getElementById('kdInput').value;");
+  client.print("let deadband=document.getElementById('deadbandSlider').value;");
+  client.print("let maxturn=document.getElementById('maxTurnSlider').value;");
+  client.print("return 'speed='+speed+'&kp='+kp+'&ki='+ki+'&kd='+kd+'&deadband='+deadband+'&maxturn='+maxturn;");
+  client.print("}");
+  client.print("let liveTimer=null;");
+  client.print("function liveTune(){clearTimeout(liveTimer);liveTimer=setTimeout(function(){");
+  client.print("fetch('/live?'+params(),{cache:'no-store'}).then(r=>r.text()).then(t=>setStatus(t)).catch(()=>setStatus('live update failed'));");
+  client.print("},120);}");
+  client.print("function sendParams(){fetch('/set?'+params(),{cache:'no-store'}).then(r=>r.text()).then(t=>{setStatus(t);poll();}).catch(()=>setStatus('settings failed'));}");
+  client.print("function startTracking(){fetch('/follow',{cache:'no-store'}).then(r=>r.text()).then(t=>{setStatus(t);poll();}).catch(()=>setStatus('start failed'));}");
+  client.print("function estop(){fetch('/stop',{cache:'no-store'}).then(r=>r.text()).then(t=>{setStatus(t);poll();}).catch(()=>setStatus('stop failed'));}");
   client.print("function poll(){fetch('/data',{cache:'no-store'}).then(r=>r.json()).then(d=>{");
   client.print("setText('enabledLive',d.enabled?'ENABLED':'STOPPED');setText('modeLive',d.mode);");
   client.print("setText('visibleLive',d.yellowVisible?'YES':'NO');setText('idLive',d.yellowId);");
@@ -106,7 +129,7 @@ static void sendPage(WiFiClient& client) {
   client.print("setText('areaLive',d.area);setText('errorLive',d.errorX);setText('ageLive',d.lastSeenAgeMs<0?'never':d.lastSeenAgeMs);");
   client.print("setText('servoLive',d.servo);");
   client.print("}).catch(()=>{});}setInterval(poll,500);");
-  client.print("document.addEventListener('keydown',function(e){if(e.code==='Space'){e.preventDefault();window.location.href='/stop';}});");
+  client.print("document.addEventListener('keydown',function(e){if(e.code==='Space'){e.preventDefault();estop();}});");
   client.print("</script>");
 
   client.print("</head><body><div class='wrap'>");
@@ -164,44 +187,53 @@ static void sendPage(WiFiClient& client) {
   client.print("</div></div>");
 
   client.print("<div class='box'><h3>Line Tracking Settings</h3>");
-  client.print("<form action='/set'><div class='row'>");
+  client.print("<div class='row'>");
 
   client.print("<div><div class='label'>Motor Speed: <span id='speedText'>");
   client.print(motorSpeed);
-  client.print("</span></div><input type='range' name='speed' min='0' max='180' value='");
+  client.print("</span></div><input id='speedSlider' type='range' name='speed' min='0' max='180' value='");
   client.print(motorSpeed);
-  client.print("' oninput='showSpeed(this.value)'></div>");
+  client.print("' oninput='showSpeed(this.value);liveTune()'></div>");
 
-  client.print("<div><div class='label'>Kp</div><input type='text' name='kp' value='");
+  client.print("<div><div class='label'>Line Reaction: <span id='reactionText'>");
+  client.print(kp, 2);
+  client.print("</span></div><input id='reactionSlider' type='range' name='reaction' min='1' max='150' value='");
+  client.print((int)(kp * 100));
+  client.print("' oninput='showReaction(this.value);liveTune()'></div>");
+
+  client.print("<input id='kpHidden' type='hidden' name='kp' value='");
   client.print(kp, 3);
-  client.print("'></div>");
+  client.print("'>");
 
-  client.print("<div><div class='label'>Ki</div><input type='text' name='ki' value='");
+  client.print("<div><div class='label'>Ki</div><input id='kiInput' type='text' name='ki' value='");
   client.print(ki, 3);
-  client.print("'></div>");
+  client.print("' oninput='liveTune()'></div>");
 
-  client.print("<div><div class='label'>Kd</div><input type='text' name='kd' value='");
+  client.print("<div><div class='label'>Kd</div><input id='kdInput' type='text' name='kd' value='");
   client.print(kd, 3);
-  client.print("'></div>");
+  client.print("' oninput='liveTune()'></div>");
 
   client.print("<div><div class='label'>Ignore Center Wiggle: <span id='deadbandText'>");
   client.print(yellowLineDeadbandPixels);
-  client.print("</span> px</div><input type='range' name='deadband' min='0' max='60' value='");
+  client.print("</span> px</div><input id='deadbandSlider' type='range' name='deadband' min='0' max='60' value='");
   client.print(yellowLineDeadbandPixels);
-  client.print("' oninput='showDeadband(this.value)'></div>");
+  client.print("' oninput='showDeadband(this.value);liveTune()'></div>");
 
   client.print("<div><div class='label'>Turn Limit: <span id='maxTurnText'>");
   client.print(yellowLineMaxTurn);
-  client.print("</span> deg</div><input type='range' name='maxturn' min='0' max='35' value='");
+  client.print("</span> deg</div><input id='maxTurnSlider' type='range' name='maxturn' min='0' max='35' value='");
   client.print(yellowLineMaxTurn);
-  client.print("' oninput='showMaxTurn(this.value)'></div>");
+  client.print("' oninput='showMaxTurn(this.value);liveTune()'></div>");
 
-  client.print("</div><input class='btn blue' type='submit' value='Apply Settings'></form>");
+  client.print("</div>");
+  client.print("<button class='btn blue' onclick='sendParams()'>Apply Settings</button>");
 
   client.print("<div class='row'>");
-  client.print("<form action='/follow'><input class='btn green' type='submit' value='Enable Line Tracking'></form>");
-  client.print("<form action='/stop'><input class='btn red' type='submit' value='Stop Everything'></form>");
+  client.print("<button class='btn green' onclick='startTracking()'>Enable Line Tracking</button>");
+  client.print("<button class='btn red' onclick='estop()'>Stop Everything</button>");
   client.print("</div></div>");
+
+  client.print("<div class='box'><h3 id='statusText'>Status: ready</h3></div>");
 
   client.print("</div></body></html>");
 }
@@ -228,18 +260,44 @@ static void handleClient(WiFiClient& client) {
     return;
   }
 
+  if (req.indexOf("/live") != -1) {
+    String sSpeed = getValue(req, "speed");
+    String sKp = getValue(req, "kp");
+    String sKi = getValue(req, "ki");
+    String sKd = getValue(req, "kd");
+    String sDeadband = getValue(req, "deadband");
+    String sMaxTurn = getValue(req, "maxturn");
+
+    if (sSpeed != "") motorSpeed = constrain(sSpeed.toInt(), 0, 180);
+    if (sKp != "") kp = constrain(sKp.toFloat(), 0.01f, 1.50f);
+    if (sKi != "") ki = sKi.toFloat();
+    if (sKd != "") kd = sKd.toFloat();
+    if (sDeadband != "") yellowLineDeadbandPixels = constrain(sDeadband.toInt(), 0, 60);
+    if (sMaxTurn != "") yellowLineMaxTurn = constrain(sMaxTurn.toInt(), 0, 35);
+
+    if (!emergencyStop && sSpeed != "") {
+      setEscSpeed(motorSpeed);
+    }
+
+    sendText(client, "Live settings updated");
+    client.stop();
+    return;
+  }
+
   if (req.indexOf("/stop") != -1) {
     emergencyStop = true;
     setSteeringServo(servoCenter);
     stopMotor();
-    redirectHome(client);
+    Serial.println("[WEB] Emergency stop activated");
+    sendText(client, "Emergency stop activated");
     client.stop();
     return;
   } else if (req.indexOf("/follow") != -1) {
     emergencyStop = false;
     mode = FOLLOW_COLOR;
     resetPidState();
-    redirectHome(client);
+    Serial.println("[WEB] Line tracking enabled");
+    sendText(client, "Line tracking enabled");
     client.stop();
     return;
   } else if (req.indexOf("/set") != -1) {
@@ -265,13 +323,14 @@ static void handleClient(WiFiClient& client) {
     emergencyStop = false;
     mode = FOLLOW_COLOR;
     resetPidState();
+    saveCurrentSettings();
     Serial.println("[WEB] Settings applied, tracking started");
 
     if (!emergencyStop && sSpeed != "") {
       setEscSpeed(motorSpeed);
     }
 
-    redirectHome(client);
+    sendText(client, "Settings applied, tracking started");
     client.stop();
     return;
   }

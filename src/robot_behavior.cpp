@@ -12,6 +12,7 @@ static int lockedAvoidSteer = AVOID_LEFT_STEER;
 static bool avoidSteerLocked = false;
 static unsigned long lastImuFallbackPrintMs = 0;
 static unsigned long yellowLineLostStartMs = 0;
+static int lastYellowLineSteer = DEFAULT_SERVO_CENTER;
 
 static int chooseAvoidSteer() {
   if (frontAngle >= 360.0 - FRONT_HALF_ANGLE) return AVOID_RIGHT_STEER;
@@ -76,7 +77,9 @@ static void followYellowLine() {
     }
 
     if (now - yellowLineLostStartMs < YELLOW_LINE_LOST_GRACE_MS) {
-      setSteeringServo(servoCenter);
+      // Keep the last known line-following steering for a short moment so one
+      // missed HUSKYLENS frame does not make the robot twitch or stop.
+      setSteeringServo(lastYellowLineSteer);
       setEscSpeed(motorSpeed);
       return;
     }
@@ -103,7 +106,7 @@ static void followYellowLine() {
     float derivative = (error - lastError) / dt;
     int correction = kp * error + ki * errorSum + kd * derivative;
     correction = constrain(correction, -yellowLineMaxTurn, yellowLineMaxTurn);
-    steer = servoCenter + correction;
+    steer = servoCenter - correction;
     lastError = error;
     lastPidTime = now;
 
@@ -118,6 +121,7 @@ static void followYellowLine() {
   }
 
   setSteeringServo(steer);
+  lastYellowLineSteer = steer;
   setEscSpeed(motorSpeed);
 }
 
@@ -179,10 +183,17 @@ static void findYellowLine() {
 
 void setupRobotBehavior() {
   resetPidState();
+  mode = FOLLOW_COLOR;
+  emergencyStop = !START_LINE_TRACKING_ON_BOOT;
+  setSteeringServo(servoCenter);
+  if (emergencyStop) {
+    stopMotor();
+  }
   lockedAvoidSteer = AVOID_LEFT_STEER;
   avoidSteerLocked = false;
   lastImuFallbackPrintMs = 0;
   yellowLineLostStartMs = 0;
+  lastYellowLineSteer = servoCenter;
 }
 
 void updateRobotBehavior() {

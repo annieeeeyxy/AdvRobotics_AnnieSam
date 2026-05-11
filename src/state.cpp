@@ -1,6 +1,21 @@
 #include "state.h"
 
 #include "config.h"
+#include "KVStore.h"
+#include "kvstore_global_api.h"
+
+struct SavedSettings {
+  uint32_t magic;
+  float savedKp;
+  float savedKi;
+  float savedKd;
+  int savedMotorSpeed;
+  int savedDeadbandPixels;
+  int savedMaxTurn;
+};
+
+static const char* SETTINGS_KEY = "line_settings";
+static const uint32_t SETTINGS_MAGIC = 0x4C494E45; // "LINE"
 
 Mode mode = FOLLOW_COLOR;
 
@@ -15,7 +30,7 @@ int servoCenter = DEFAULT_SERVO_CENTER;
 int currentServoPosition = DEFAULT_SERVO_CENTER;
 int imageCenter = DEFAULT_IMAGE_CENTER;
 int motorSpeed = 100;
-bool emergencyStop = true;
+bool emergencyStop = !START_LINE_TRACKING_ON_BOOT;
 
 float frontDistance = 10000.0;
 float frontAngle = -1.0;
@@ -56,4 +71,48 @@ void resetPidState() {
   errorSum = 0.0;
   lastError = 0.0;
   lastPidTime = millis();
+}
+
+void loadSavedSettings() {
+  SavedSettings saved;
+  size_t actualSize = 0;
+
+  int result = kv_get(SETTINGS_KEY, &saved, sizeof(saved), &actualSize);
+  if (result != 0 || actualSize != sizeof(saved) || saved.magic != SETTINGS_MAGIC) {
+    Serial.println("[SETTINGS] No saved line settings found, using defaults");
+    return;
+  }
+
+  kp = saved.savedKp;
+  ki = saved.savedKi;
+  kd = saved.savedKd;
+  motorSpeed = constrain(saved.savedMotorSpeed, 0, 180);
+  yellowLineDeadbandPixels = constrain(saved.savedDeadbandPixels, 0, 60);
+  yellowLineMaxTurn = constrain(saved.savedMaxTurn, 0, 35);
+
+  Serial.println("[SETTINGS] Loaded saved line settings");
+  Serial.print("[SETTINGS] speed=");
+  Serial.println(motorSpeed);
+  Serial.print("[SETTINGS] kp=");
+  Serial.println(kp, 3);
+}
+
+void saveCurrentSettings() {
+  SavedSettings saved = {
+    SETTINGS_MAGIC,
+    kp,
+    ki,
+    kd,
+    motorSpeed,
+    yellowLineDeadbandPixels,
+    yellowLineMaxTurn
+  };
+
+  int result = kv_set(SETTINGS_KEY, &saved, sizeof(saved), 0);
+  if (result == 0) {
+    Serial.println("[SETTINGS] Saved line settings");
+  } else {
+    Serial.print("[SETTINGS] Save failed, code=");
+    Serial.println(result);
+  }
 }

@@ -54,5 +54,7 @@ extern unsigned long centerAfterAvoidStart;
 
 const char* modeName();
 void resetPidState();
+void loadSavedSettings();
+void saveCurrentSettings();
 
 #endif

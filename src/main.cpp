@@ -6,6 +6,7 @@
 #include "lidar_module.h"
 #include "motor_control.h"
 #include "robot_behavior.h"
+#include "state.h"
 #include "web_dashboard.h"
 
 #if !ENABLE_IMU_STANDALONE_TEST
@@ -15,6 +16,7 @@ void setup() {
   delay(1500);
   Serial.println("Booting Nimbus firmware");
 
+  loadSavedSettings();
 
   if(ENABLE_IMU){
     setupImu();
