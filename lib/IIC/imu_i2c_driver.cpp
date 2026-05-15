@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#define IMU_I2C_ADDRESS 0x23
+#include "../../src/config.h"
 
 #ifndef IMU_REGISTER_READ_DELAY_MS
 #define IMU_REGISTER_READ_DELAY_MS 8

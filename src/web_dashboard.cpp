@@ -4,7 +4,9 @@
 #include <WiFi.h>
 
 #include "config.h"
+#include "gps_module.h"
 #include "motor_control.h"
+#include "imu_module.h"
 #include "state.h"
 
 static WiFiServer server(WEB_PORT);
@@ -32,6 +34,8 @@ static void sendText(WiFiClient& client, const char* text) {
 }
 
 static void sendDataJson(WiFiClient& client) {
+  GpsLocation location = gps();
+
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: application/json");
   client.println("Cache-Control: no-store");
@@ -69,10 +73,44 @@ static void sendDataJson(WiFiClient& client) {
   client.print(kp, 3);
   client.print(",\"yellowLineMaxTurn\":");
   client.print(yellowLineMaxTurn);
+  client.print(",\"imuReady\":");
+  client.print(imuReadOk ? "true" : "false");
+  client.print(",\"yaw\":");
+  client.print(getYaw(), 2);
+  client.print(",\"pitch\":");
+  client.print(getPitch(), 2);
+  client.print(",\"roll\":");
+  client.print(getRoll(), 2);
+  client.print(",\"frontBlocked\":");
+  client.print(frontBlocked ? "true" : "false");
+  client.print(",\"frontDistance\":");
+  client.print(frontDistance, 1);
+  client.print(",\"frontAngle\":");
+  client.print(frontAngle, 1);
+  client.print(",\"gpsHasFix\":");
+  client.print(location.hasFix ? "true" : "false");
+  client.print(",\"gpsLat\":");
+  client.print(location.latitude, 6);
+  client.print(",\"gpsLon\":");
+  client.print(location.longitude, 6);
+  client.print(",\"gpsSat\":");
+  client.print(location.satellites);
+  client.print(",\"gpsHdop\":");
+  client.print(location.hdop, 2);
+  client.print(",\"gpsAgeMs\":");
+  client.print(location.lastFixMs == 0 ? -1 : (long)location.ageMs);
+  client.print(",\"gpsChars\":");
+  client.print(location.charsProcessed);
+  client.print(",\"gpsBaud\":");
+  client.print(location.baud);
   client.print("}");
 }
 
 static void sendPage(WiFiClient& client) {
+#if ENABLE_GPS
+  GpsLocation location = gps();
+#endif
+
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
   client.println("Cache-Control: no-store");
@@ -87,6 +125,7 @@ static void sendPage(WiFiClient& client) {
   client.print("body{font-family:Arial,sans-serif;margin:0;background:#f4f6f8;color:#1f2933;}");
   client.print(".wrap{max-width:920px;margin:auto;padding:18px;}");
   client.print(".box{background:white;border:1px solid #d9e0e6;border-radius:10px;padding:18px;margin-bottom:16px;}");
+  client.print(".sectionTitle{font-size:16px;font-weight:bold;margin:4px 0 12px;color:#1f2933;}");
   client.print(".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;}");
   client.print(".row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;}");
   client.print(".card{background:white;border:1px solid #d9e0e6;border-radius:8px;padding:14px;}");
@@ -128,12 +167,20 @@ static void sendPage(WiFiClient& client) {
   client.print("setText('xLive',d.xCenter);setText('yLive',d.yCenter);setText('wLive',d.width);setText('hLive',d.height);");
   client.print("setText('areaLive',d.area);setText('errorLive',d.errorX);setText('ageLive',d.lastSeenAgeMs<0?'never':d.lastSeenAgeMs);");
   client.print("setText('servoLive',d.servo);");
-  client.print("}).catch(()=>{});}setInterval(poll,500);");
+  client.print("setText('imuReadyLive',d.imuReady?'YES':'NO');setText('yawLive',Number(d.yaw).toFixed(2));");
+  client.print("setText('pitchLive',Number(d.pitch).toFixed(2));setText('rollLive',Number(d.roll).toFixed(2));");
+  client.print("setText('blockedLive',d.frontBlocked?'YES':'NO');setText('frontDistanceLive',d.frontDistance>=9999?'none':Number(d.frontDistance).toFixed(0));");
+  client.print("setText('frontAngleLive',d.frontAngle<0?'none':Number(d.frontAngle).toFixed(1));");
+  client.print("setText('gpsFixLive',d.gpsHasFix?'YES':'NO');setText('gpsLatLive',d.gpsHasFix?Number(d.gpsLat).toFixed(6):'waiting');");
+  client.print("setText('gpsLonLive',d.gpsHasFix?Number(d.gpsLon).toFixed(6):'waiting');setText('gpsSatLive',d.gpsSat);");
+  client.print("setText('gpsHdopLive',Number(d.gpsHdop).toFixed(2));setText('gpsAgeLive',d.gpsAgeMs<0?'never':d.gpsAgeMs);");
+  client.print("setText('gpsCharsLive',d.gpsChars);setText('gpsBaudLive',d.gpsBaud);");
+  client.print("}).catch(()=>{});}setInterval(poll,200);document.addEventListener('DOMContentLoaded',poll);");
   client.print("document.addEventListener('keydown',function(e){if(e.code==='Space'){e.preventDefault();estop();}});");
   client.print("</script>");
 
   client.print("</head><body><div class='wrap'>");
-  client.print("<div class='box'><h2>HuskyLens Line Tracker Test</h2><div class='grid'>");
+  client.print("<div class='box'><h2>HUSKYLENS Servo Test</h2><div class='sectionTitle'>Robot</div><div class='grid'>");
 
   client.print("<div class='card'><div class='label'>Robot</div><div class='value'><span id='enabledLive'>");
   client.print(emergencyStop ? "STOPPED" : "ENABLED");
@@ -142,6 +189,15 @@ static void sendPage(WiFiClient& client) {
   client.print("<div class='card'><div class='label'>Mode</div><div class='value'><span id='modeLive'>");
   client.print(modeName());
   client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Servo</div><div class='value'><span id='servoLive'>");
+  client.print(currentServoPosition);
+  client.print("</span></div></div>");
+
+  client.print("</div></div>");
+
+#if ENABLE_HUSKYLENS
+  client.print("<div class='box'><div class='sectionTitle'>HUSKYLENS Yellow Line</div><div class='grid'>");
 
   client.print("<div class='card'><div class='label'>Yellow Visible</div><div class='value'><span id='visibleLive'>");
   client.print(yellowLineVisible ? "YES" : "NO");
@@ -180,11 +236,91 @@ static void sendPage(WiFiClient& client) {
   else client.print(millis() - yellowLineLastSeenMs);
   client.print("</span></div></div>");
 
-  client.print("<div class='card'><div class='label'>Servo</div><div class='value'><span id='servoLive'>");
-  client.print(currentServoPosition);
+  client.print("</div></div>");
+#endif
+
+#if ENABLE_IMU
+  client.print("<div class='box'><div class='sectionTitle'>IMU Heading</div><div class='grid'>");
+
+  client.print("<div class='card'><div class='label'>IMU Ready</div><div class='value'><span id='imuReadyLive'>");
+  client.print(imuReadOk ? "YES" : "NO");
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Yaw</div><div class='value'><span id='yawLive'>");
+  client.print(getYaw(), 2);
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Pitch</div><div class='value'><span id='pitchLive'>");
+  client.print(getPitch(), 2);
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Roll</div><div class='value'><span id='rollLive'>");
+  client.print(getRoll(), 2);
   client.print("</span></div></div>");
 
   client.print("</div></div>");
+#endif
+
+#if ENABLE_LIDAR
+  client.print("<div class='box'><div class='sectionTitle'>LiDAR Obstacle</div><div class='grid'>");
+
+  client.print("<div class='card'><div class='label'>LiDAR Blocked</div><div class='value'><span id='blockedLive'>");
+  client.print(frontBlocked ? "YES" : "NO");
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Front mm</div><div class='value'><span id='frontDistanceLive'>");
+  if (frontDistance < 9999) client.print(frontDistance, 0);
+  else client.print("none");
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Front Angle</div><div class='value'><span id='frontAngleLive'>");
+  if (frontAngle >= 0) client.print(frontAngle, 1);
+  else client.print("none");
+  client.print("</span></div></div>");
+
+  client.print("</div></div>");
+#endif
+
+#if ENABLE_GPS
+  client.print("<div class='box'><div class='sectionTitle'>GPS Location</div><div class='grid'>");
+
+  client.print("<div class='card'><div class='label'>GPS Fix</div><div class='value'><span id='gpsFixLive'>");
+  client.print(location.hasFix ? "YES" : "NO");
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Latitude</div><div class='value'><span id='gpsLatLive'>");
+  if (location.hasFix) client.print(location.latitude, 6);
+  else client.print("waiting");
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Longitude</div><div class='value'><span id='gpsLonLive'>");
+  if (location.hasFix) client.print(location.longitude, 6);
+  else client.print("waiting");
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>Satellites</div><div class='value'><span id='gpsSatLive'>");
+  client.print(location.satellites);
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>GPS HDOP</div><div class='value'><span id='gpsHdopLive'>");
+  client.print(location.hdop, 2);
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>GPS Age ms</div><div class='value'><span id='gpsAgeLive'>");
+  if (location.lastFixMs == 0) client.print("never");
+  else client.print(location.ageMs);
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>GPS Chars</div><div class='value'><span id='gpsCharsLive'>");
+  client.print(location.charsProcessed);
+  client.print("</span></div></div>");
+
+  client.print("<div class='card'><div class='label'>GPS Baud</div><div class='value'><span id='gpsBaudLive'>");
+  client.print(location.baud);
+  client.print("</span></div></div>");
+
+  client.print("</div></div>");
+#endif
 
   client.print("<div class='box'><h3>Line Tracking Settings</h3>");
   client.print("<div class='row'>");

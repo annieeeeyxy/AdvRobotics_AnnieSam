@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #include "config.h"
+#include "gps_module.h"
 #include "huskylens_module.h"
 #include "imu_module.h"
 #include "lidar_module.h"
@@ -20,6 +21,9 @@ void setup() {
 
   if(ENABLE_IMU){
     setupImu();
+  }
+  if (ENABLE_GPS) {
+    setupGps();
   }
   if (ENABLE_WEB) {
     setupWebDashboard();
@@ -46,6 +50,7 @@ void setup() {
 }
 
 void loop() {
+  serviceGps();
   updateImuCached();
   serviceWebDashboard();
   updateFrontLidar();

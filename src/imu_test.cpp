@@ -17,8 +17,8 @@ static bool scanI2cBus() {
   Serial.println("I2C scan start");
 
   for (uint8_t address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    uint8_t error = Wire.endTransmission();
+    Wire1.beginTransmission(address);
+    uint8_t error = Wire1.endTransmission();
 
     if (error == 0) {
       foundAnyDevice = true;
@@ -31,7 +31,10 @@ static bool scanI2cBus() {
   }
 
   if (!foundAnyDevice) {
-    Serial.println("NO I2C DEVICE FOUND ON D20/D21");
+    Serial.print("NO I2C DEVICE FOUND ON D");
+    Serial.print(IMU_I2C_SDA_PIN);
+    Serial.print("/D");
+    Serial.println(IMU_I2C_SCL_PIN);
   }
 
   return foundAnyDevice;
@@ -42,9 +45,12 @@ void setup() {
   delay(1500);
 
   Serial.println();
-  Serial.println("Testing Arduino Giga default I2C bus: D20/SDA, D21/SCL");
+  Serial.print("Testing Arduino Giga IMU I2C bus: Wire1 SDA=D");
+  Serial.print(IMU_I2C_SDA_PIN);
+  Serial.print(" SCL=D");
+  Serial.println(IMU_I2C_SCL_PIN);
 
-  Wire.begin();
+  Wire1.begin();
   scanI2cBus();
 
   IIC_Init();
@@ -58,12 +64,7 @@ void setup() {
   Serial.println(readAllResult);
 
   if (readAllResult == 0) {
-    Serial.print("yaw=");
-    Serial.print(imu_data.euler[2], 3);
-    Serial.print(" pitch=");
-    Serial.print(imu_data.euler[1], 3);
-    Serial.print(" roll=");
-    Serial.println(imu_data.euler[0], 3);
+    print_sensor_data(imu_data);
   }
 }
 
@@ -80,12 +81,7 @@ void loop() {
   Serial.println(readAllResult);
 
   if (readAllResult == 0) {
-    Serial.print("yaw=");
-    Serial.print(imu_data.euler[2], 3);
-    Serial.print(" pitch=");
-    Serial.print(imu_data.euler[1], 3);
-    Serial.print(" roll=");
-    Serial.println(imu_data.euler[0], 3);
+    print_sensor_data(imu_data);
   }
 }
 

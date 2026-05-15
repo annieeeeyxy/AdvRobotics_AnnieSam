@@ -77,10 +77,13 @@ static void followYellowLine() {
     }
 
     if (now - yellowLineLostStartMs < YELLOW_LINE_LOST_GRACE_MS) {
-      // Keep the last known line-following steering for a short moment so one
-      // missed HUSKYLENS frame does not make the robot twitch or stop.
-      setSteeringServo(lastYellowLineSteer);
-      setEscSpeed(motorSpeed);
+      // Hold the last good heading through brief HUSKYLENS dropouts.
+      if (imuReadOk == true) {
+        driveStraightWithImu();
+      } else {
+        setSteeringServo(lastYellowLineSteer);
+        setEscSpeed(motorSpeed);
+      }
       return;
     }
 
@@ -116,8 +119,17 @@ static void followYellowLine() {
     Serial.print(correction);
     Serial.print(" steer=");
     Serial.println(steer);
+
+    if (imuReadOk == true) {
+      targetYaw = getYaw();
+    }
   } else {
     Serial.println("[YELLOW LINE] Line centered. Going straight.");
+    if (imuReadOk == true) {
+      driveStraightWithImu();
+      lastYellowLineSteer = currentServoPosition;
+      return;
+    }
   }
 
   setSteeringServo(steer);

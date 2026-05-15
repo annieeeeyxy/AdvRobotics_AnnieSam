@@ -4,11 +4,14 @@
 #include <Arduino.h>
 
 /************ Compile-time module switches ************/
+#define ENABLE_IMU_STANDALONE_TEST 0
 #define ENABLE_WEB 1
 #define ENABLE_IMU 0
 #define ENABLE_LIDAR 0
 #define ENABLE_HUSKYLENS 1
-#define ENABLE_ROBOT_BEHAVIOR 1
+#define ENABLE_ROBOT_BEHAVIOR 0
+#define ENABLE_GPS 0
+#define ENABLE_HUSKYLENS_SERVO_TEST 1
 
 /************ WiFi ************/
 #define WIFI_SSID "GIGA_PID"
@@ -28,6 +31,12 @@ const int IMU_I2C_SCL_PIN = 21;        // Arduino GIGA Wire1 SCL
 /************ I2C / HUSKYLENS ************/
 // HUSKYLENS uses the default Wire bus, matching the working DFRobot example.
 
+/************ GPS ************/
+#define GPS_SERIAL_PORT Serial2
+const unsigned long GPS_PRIMARY_BAUD = 115200;
+const unsigned long GPS_FALLBACK_BAUD = 57600;
+const unsigned long GPS_BAUD_SWITCH_MS = 3000;
+
 /************ Robot settings ************/
 const int DEFAULT_SERVO_CENTER = 90;
 const int DEFAULT_IMAGE_CENTER = 160;
@@ -39,7 +48,7 @@ const bool START_LINE_TRACKING_ON_BOOT = true;
 /************ Yellow line tracking ************/
 const int YELLOW_LINE_TARGET_X = 160;       // HUSKYLENS image width is about 320 pixels
 const int YELLOW_LINE_ID = 1;               // learned yellow line color ID on HUSKYLENS
-const float DEFAULT_YELLOW_LINE_STEER_GAIN = 0.08;  // higher = stronger steering response
+const float DEFAULT_YELLOW_LINE_STEER_GAIN = 0.25;  // higher = stronger steering response
 const unsigned long YELLOW_LINE_LOST_GRACE_MS = 700; // keep running through brief camera misses
 
 /************ LiDAR ************/

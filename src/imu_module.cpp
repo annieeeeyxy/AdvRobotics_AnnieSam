@@ -37,17 +37,31 @@ static void printImuFailureThrottled(int result) {
 }
 
 static void scanI2cBus() {
-  Serial.println("Scanning I2C bus...");
+  Serial.print("Scanning IMU bus: Wire1 SDA=D");
+  Serial.print(IMU_I2C_SDA_PIN);
+  Serial.print(" SCL=D");
+  Serial.println(IMU_I2C_SCL_PIN);
   int found = 0;
+  bool imuFound = false;
 
   for (uint8_t address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    if (Wire.endTransmission() == 0) {
-      Serial.print("I2C device found at 0x");
+    Wire1.beginTransmission(address);
+    if (Wire1.endTransmission() == 0) {
+      Serial.print("Found device at 0x");
       if (address < 16) Serial.print("0");
       Serial.println(address, HEX);
+      if (address == IMU_I2C_ADDRESS) {
+        imuFound = true;
+      }
       found++;
     }
+  }
+
+  if (imuFound) {
+    Serial.print("IMU 0x");
+    if (IMU_I2C_ADDRESS < 16) Serial.print("0");
+    Serial.print(IMU_I2C_ADDRESS, HEX);
+    Serial.println(" found");
   }
 
   if (found == 0) {
@@ -58,6 +72,7 @@ static void scanI2cBus() {
 void setupImu() {
 #if ENABLE_IMU
   Serial.println("IMU init start");
+  Wire1.begin();
   IIC_Init();
   scanI2cBus();
 

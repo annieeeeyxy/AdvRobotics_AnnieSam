@@ -5,6 +5,7 @@
 #include "HUSKYLENS.h"
 
 #include "config.h"
+#include "motor_control.h"
 #include "state.h"
 
 static HUSKYLENS husky;
@@ -149,8 +150,21 @@ void serviceHuskylensColorTest() {
   // Test only: report the largest learned yellow color block. No driving logic
   // belongs here, so this can be used safely while tuning HUSKYLENS color mode.
   if (!readYellowLineBlock(block, errorX)) {
+#if ENABLE_HUSKYLENS_SERVO_TEST
+    setSteeringServo(servoCenter);
+    stopMotor();
+#endif
     return;
   }
+
+#if ENABLE_HUSKYLENS_SERVO_TEST
+  int correction = errorX * yellowLineSteerGain;
+  correction = constrain(correction, -yellowLineMaxTurn, yellowLineMaxTurn);
+  int steer = servoCenter - correction;
+
+  setSteeringServo(steer);
+  stopMotor();
+#endif
 
   Serial.print("Yellow line visible: yes");
   Serial.print(" ID=");
@@ -166,6 +180,12 @@ void serviceHuskylensColorTest() {
   Serial.print(" area=");
   Serial.print(block.area);
   Serial.print(" errorX=");
-  Serial.println(errorX);
+  Serial.print(errorX);
+#if ENABLE_HUSKYLENS_SERVO_TEST
+  Serial.print(" servo=");
+  Serial.println(currentServoPosition);
+#else
+  Serial.println();
+#endif
 #endif
 }

@@ -47,7 +47,7 @@ int yellowLineErrorX = 0;
 unsigned long yellowLineLastSeenMs = 0;
 int yellowLineDeadbandPixels = 10;
 float yellowLineSteerGain = DEFAULT_YELLOW_LINE_STEER_GAIN;
-int yellowLineMaxTurn = 25;
+int yellowLineMaxTurn = 30;
 
 bool imuReadOk = false;
 float targetYaw = 0.0;
