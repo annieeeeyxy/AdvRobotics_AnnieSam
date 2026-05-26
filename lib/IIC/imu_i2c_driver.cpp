@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "../../src/config.h"
 
@@ -30,13 +31,90 @@ static float to_float(const uint8_t *bytes)
     return value;
 }
 
+static void print_hex_byte(uint8_t value)
+{
+    if (value < 0x10) {
+        Serial.print("0");
+    }
+    Serial.print(value, HEX);
+}
+
+static void debug_print_i2c_error(const char *operation, uint8_t dev_addr, uint8_t reg_addr, uint16_t length, int status)
+{
+#if IMU_DEBUG
+    Serial.print("[IMU-I2C] ");
+    Serial.print(operation);
+    Serial.print(" failed addr=0x");
+    print_hex_byte(dev_addr);
+    Serial.print(" reg=0x");
+    print_hex_byte(reg_addr);
+    Serial.print(" len=");
+    Serial.print(length);
+    Serial.print(" status=");
+    Serial.println(status);
+#else
+    (void)operation;
+    (void)dev_addr;
+    (void)reg_addr;
+    (void)length;
+    (void)status;
+#endif
+}
+
+static void debug_print_bytes(const char *label, uint8_t reg_addr, const uint8_t *data, uint16_t length)
+{
+#if IMU_DEBUG
+    Serial.print("[IMU-I2C] ");
+    Serial.print(label);
+    Serial.print(" reg=0x");
+    print_hex_byte(reg_addr);
+    Serial.print(" bytes=");
+    for (uint16_t i = 0; i < length; i++) {
+        if (i > 0) {
+            Serial.print(" ");
+        }
+        print_hex_byte(data[i]);
+    }
+    Serial.println();
+#else
+    (void)label;
+    (void)reg_addr;
+    (void)data;
+    (void)length;
+#endif
+}
+
+static void debug_print_read_stage_failed(const char *label, uint8_t reg_addr, int status)
+{
+#if IMU_DEBUG
+    Serial.print("[IMU-I2C] ReadAll failed at ");
+    Serial.print(label);
+    Serial.print(" reg=0x");
+    print_hex_byte(reg_addr);
+    Serial.print(" code=");
+    Serial.println(status);
+#else
+    (void)label;
+    (void)reg_addr;
+    (void)status;
+#endif
+}
+
 int IMU_ReadBytes(uint8_t dev_addr, uint8_t reg_addr, uint8_t *buf, uint16_t len)
 {
-    return i2cRead(dev_addr, reg_addr, (uint8_t)len, buf);
+    int status = i2cRead(dev_addr, reg_addr, (uint8_t)len, buf);
+    if (status != 0) {
+        debug_print_i2c_error("read", dev_addr, reg_addr, len, status);
+    }
+    return status;
 }
 int IMU_WriteBytes(uint8_t dev_addr, uint8_t reg_addr, const uint8_t *buf, uint16_t len)
 {
-    return i2cWrite(dev_addr, reg_addr, (uint8_t)len, (uint8_t *)buf);
+    int status = i2cWrite(dev_addr, reg_addr, (uint8_t)len, (uint8_t *)buf);
+    if (status != 0) {
+        debug_print_i2c_error("write", dev_addr, reg_addr, len, status);
+    }
+    return status;
 }
 
 /**
@@ -184,11 +262,20 @@ int IMU_I2C_ReadAccelerometer(float out[3])
     if (read_register(IMU_FUNC_RAW_ACCEL, register_data, 6) != 0) {
         return -1;
     }
+    debug_print_bytes("raw accel", IMU_FUNC_RAW_ACCEL, register_data, 6);
     if (out != NULL) {
         float ratio = 16.0f / 32767.0f;
         out[0] = to_int16(&register_data[0]) * ratio;
         out[1] = to_int16(&register_data[2]) * ratio;
         out[2] = to_int16(&register_data[4]) * ratio;
+#if IMU_DEBUG
+        Serial.print("[IMU-I2C] accel[g] x=");
+        Serial.print(out[0], 6);
+        Serial.print(" y=");
+        Serial.print(out[1], 6);
+        Serial.print(" z=");
+        Serial.println(out[2], 6);
+#endif
     }
     return 0;
 }
@@ -203,6 +290,7 @@ int IMU_I2C_ReadGyroscope(float out[3])
     if (read_register(IMU_FUNC_RAW_GYRO, register_data, 6) != 0) {
         return -1;
     }
+    debug_print_bytes("raw gyro", IMU_FUNC_RAW_GYRO, register_data, 6);
     if (out != NULL) {
         float ratio = (2000.0f / 32767.0f) * (3.1415926f / 180.0f);
         out[0] = to_int16(&register_data[0]) * ratio;
@@ -222,6 +310,7 @@ int IMU_I2C_ReadMagnetometer(float out[3])
     if (read_register(IMU_FUNC_RAW_MAG, register_data, 6) != 0) {
         return -1;
     }
+    debug_print_bytes("raw mag", IMU_FUNC_RAW_MAG, register_data, 6);
     if (out != NULL) {
         float ratio = 800.0f / 32767.0f;
         out[0] = to_int16(&register_data[0]) * ratio;
@@ -241,6 +330,7 @@ int IMU_I2C_ReadQuaternion(float out[4])
     if (read_register(IMU_FUNC_QUAT, register_data, 16) != 0) {
         return -1;
     }
+    debug_print_bytes("quat", IMU_FUNC_QUAT, register_data, 16);
     if (out != NULL) {
         out[0] = to_float(&register_data[0]);
         out[1] = to_float(&register_data[4]);
@@ -251,8 +341,8 @@ int IMU_I2C_ReadQuaternion(float out[4])
 }
 
 /**
- * @brief 读取欧拉角（弧度）
- *        Read Euler angles (rad).
+ * @brief 读取欧拉角（输出单位：度）
+ *        Read Euler angles and output degrees. Raw register floats are radians.
  */
 int IMU_I2C_ReadEuler(float out[3])
 {
@@ -260,11 +350,24 @@ int IMU_I2C_ReadEuler(float out[3])
     if (read_register(IMU_FUNC_EULER, register_data, 12) != 0) {
         return -1;
     }
+    debug_print_bytes("euler", IMU_FUNC_EULER, register_data, 12);
     if (out != NULL) {
         const float RAD2DEG = 57.2957795f;
         out[0] = to_float(&register_data[0]) * RAD2DEG;
         out[1] = to_float(&register_data[4]) * RAD2DEG;
         out[2] = to_float(&register_data[8]) * RAD2DEG;
+#if IMU_DEBUG
+        Serial.print("[IMU-I2C] euler[deg] roll=");
+        Serial.print(out[0], 6);
+        Serial.print(" pitch=");
+        Serial.print(out[1], 6);
+        Serial.print(" yaw=");
+        Serial.println(out[2], 6);
+        if (!isfinite(out[0]) || !isfinite(out[1]) || !isfinite(out[2])) {
+            Serial.println("[IMU-I2C] euler conversion produced non-finite value; check float byte order/protocol");
+            return -2;
+        }
+#endif
     }
     return 0;
 }
@@ -279,6 +382,7 @@ int IMU_I2C_ReadBarometer(float out[4])
     if (read_register(IMU_FUNC_BARO, register_data, 16) != 0) {
         return -1;
     }
+    debug_print_bytes("baro", IMU_FUNC_BARO, register_data, 16);
     if (out != NULL) {
         out[0] = to_float(&register_data[0]);
         out[1] = to_float(&register_data[4]);
@@ -318,28 +422,57 @@ int IMU_I2C_ReadAll(imu_measurement_t *out)
     if (out == NULL) {
         return -1;
     }
+    int status = IMU_I2C_ReadAccelerometer(out->accel);
+    if (status != 0) {
+        debug_print_read_stage_failed("accelerometer", IMU_FUNC_RAW_ACCEL, status);
+        return -10 + status;
+    }
+    delay(IMU_REGISTER_READ_DELAY_MS);
+    status = IMU_I2C_ReadGyroscope(out->gyro);
+    if (status != 0) {
+        debug_print_read_stage_failed("gyroscope", IMU_FUNC_RAW_GYRO, status);
+        return -20 + status;
+    }
+    delay(IMU_REGISTER_READ_DELAY_MS);
+    status = IMU_I2C_ReadMagnetometer(out->mag);
+    if (status != 0) {
+        debug_print_read_stage_failed("magnetometer", IMU_FUNC_RAW_MAG, status);
+        return -30 + status;
+    }
+    delay(IMU_REGISTER_READ_DELAY_MS);
+    status = IMU_I2C_ReadQuaternion(out->quat);
+    if (status != 0) {
+        debug_print_read_stage_failed("quaternion", IMU_FUNC_QUAT, status);
+        return -40 + status;
+    }
+    delay(IMU_REGISTER_READ_DELAY_MS);
+    status = IMU_I2C_ReadEuler(out->euler);
+    if (status != 0) {
+        debug_print_read_stage_failed("euler", IMU_FUNC_EULER, status);
+        return -50 + status;
+    }
+    delay(IMU_REGISTER_READ_DELAY_MS);
+    status = IMU_I2C_ReadBarometer(out->baro);
+    if (status != 0) {
+        debug_print_read_stage_failed("barometer", IMU_FUNC_BARO, status);
+        return -60 + status;
+    }
+    return 0;
+}
+
+int IMU_I2C_ReadEulerAndAccelerometer(imu_measurement_t *out)
+{
+    if (out == NULL) {
+        return -1;
+    }
     if (IMU_I2C_ReadAccelerometer(out->accel) != 0) {
-        return -1;
-    }
-    delay(IMU_REGISTER_READ_DELAY_MS);
-    if (IMU_I2C_ReadGyroscope(out->gyro) != 0) {
-        return -1;
-    }
-    delay(IMU_REGISTER_READ_DELAY_MS);
-    if (IMU_I2C_ReadMagnetometer(out->mag) != 0) {
-        return -1;
-    }
-    delay(IMU_REGISTER_READ_DELAY_MS);
-    if (IMU_I2C_ReadQuaternion(out->quat) != 0) {
-        return -1;
+        Serial.println("[IMU-I2C] core read failed at accelerometer reg 0x04");
+        return -2;
     }
     delay(IMU_REGISTER_READ_DELAY_MS);
     if (IMU_I2C_ReadEuler(out->euler) != 0) {
-        return -1;
-    }
-    delay(IMU_REGISTER_READ_DELAY_MS);
-    if (IMU_I2C_ReadBarometer(out->baro) != 0) {
-        return -1;
+        Serial.println("[IMU-I2C] core read failed at Euler reg 0x26");
+        return -3;
     }
     return 0;
 }

@@ -22,7 +22,7 @@ int i2cRead(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data) {
     return status;
   }
 
-  int received = Wire1.requestFrom(devAddr, length);
+  int received = Wire1.requestFrom(devAddr, length, (uint8_t)true);
   if (received != length) {
     return -1;
   }

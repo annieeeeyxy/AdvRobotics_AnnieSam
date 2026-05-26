@@ -24,9 +24,11 @@ void setSteeringServo(int angle) {
 
 void setEscSpeed(int speed) {
   motorSpeed = constrain(speed, 0, 180);
-  escMotor.write(motorSpeed);
+  currentEscOutput = motorSpeed;
+  escMotor.write(currentEscOutput);
 }
 
 void stopMotor() {
-  escMotor.write(ESC_NEUTRAL);
+  currentEscOutput = ESC_NEUTRAL;
+  escMotor.write(currentEscOutput);
 }

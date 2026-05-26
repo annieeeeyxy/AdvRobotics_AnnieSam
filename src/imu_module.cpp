@@ -12,6 +12,7 @@ static float cachedYaw = 0.0;
 static float cachedPitch = 0.0;
 static float cachedRoll = 0.0;
 static unsigned long lastImuFailurePrintMs = 0;
+static bool imuFullReadOk = false;
 
 static void cacheImuData() {
   cachedRoll = imuData.euler[0];
@@ -46,7 +47,8 @@ static void scanI2cBus() {
 
   for (uint8_t address = 1; address < 127; address++) {
     Wire1.beginTransmission(address);
-    if (Wire1.endTransmission() == 0) {
+    uint8_t status = Wire1.endTransmission();
+    if (status == 0) {
       Serial.print("Found device at 0x");
       if (address < 16) Serial.print("0");
       Serial.println(address, HEX);
@@ -54,6 +56,12 @@ static void scanI2cBus() {
         imuFound = true;
       }
       found++;
+    } else if (address == IMU_I2C_ADDRESS) {
+      Serial.print("IMU address 0x");
+      if (IMU_I2C_ADDRESS < 16) Serial.print("0");
+      Serial.print(IMU_I2C_ADDRESS, HEX);
+      Serial.print(" did not ACK, status=");
+      Serial.println(status);
     }
   }
 
@@ -72,6 +80,10 @@ static void scanI2cBus() {
 void setupImu() {
 #if ENABLE_IMU
   Serial.println("IMU init start");
+  Serial.println("Arduino GIGA IMU bus: using Wire1 for D20(SDA)/D21(SCL). Use Wire only if the IMU is wired to the board's default SDA/SCL pins.");
+  Serial.print("Expected IMU I2C address: 0x");
+  if (IMU_I2C_ADDRESS < 16) Serial.print("0");
+  Serial.println(IMU_I2C_ADDRESS, HEX);
   Wire1.begin();
   IIC_Init();
   scanI2cBus();
@@ -80,15 +92,21 @@ void setupImu() {
   Serial.print("IMU version result: ");
   Serial.println(versionResult);
 
+  int coreReadResult = IMU_I2C_ReadEulerAndAccelerometer(&imuData);
+  Serial.print("IMU accel+Euler read result: ");
+  Serial.println(coreReadResult);
+
   int firstReadResult = IMU_I2C_ReadAll(&imuData);
   Serial.print("IMU first read result: ");
   Serial.println(firstReadResult);
+  imuFullReadOk = (firstReadResult == 0);
 
-  if (firstReadResult == 0) {
+  if (firstReadResult == 0 || coreReadResult == 0) {
     imuReadOk = true;
     cacheImuData();
     targetYaw = getYaw();
-    Serial.println("IMU ready");
+    Serial.println(firstReadResult == 0 ? "IMU ready, full read works" : "IMU ready, accel+Euler works; full read failed in optional data");
+    print_sensor_data(imuData);
   } else {
     imuReadOk = false;
     clearCachedImuData();
@@ -103,6 +121,11 @@ void setupImu() {
 bool readImu() {
 #if ENABLE_IMU
   int result = IMU_I2C_ReadAll(&imuData);
+  imuFullReadOk = (result == 0);
+
+  if (result != 0) {
+    result = IMU_I2C_ReadEulerAndAccelerometer(&imuData);
+  }
 
   if (result == 0) {
     imuReadOk = true;
@@ -128,6 +151,11 @@ void updateImuCached() {
   if (now - lastImuUpdateMs >= IMU_UPDATE_INTERVAL_MS) {
     lastImuUpdateMs = now;
     int result = IMU_I2C_ReadAll(&imuData);
+    imuFullReadOk = (result == 0);
+
+    if (result != 0) {
+      result = IMU_I2C_ReadEulerAndAccelerometer(&imuData);
+    }
 
     if (result == 0) {
       imuReadOk = true;
@@ -142,7 +170,22 @@ void updateImuCached() {
   if (!ENABLE_ROBOT_BEHAVIOR && now - lastPrintAt >= IMU_PRINT_INTERVAL_MS) {
     lastPrintAt = now;
     if (imuReadOk) {
-      print_sensor_data(imuData);
+      if (imuFullReadOk) {
+        print_sensor_data(imuData);
+      } else {
+        Serial.print("[IMU] accel[g] x=");
+        Serial.print(imuData.accel[0], 3);
+        Serial.print(" y=");
+        Serial.print(imuData.accel[1], 3);
+        Serial.print(" z=");
+        Serial.print(imuData.accel[2], 3);
+        Serial.print(" | Euler[deg] roll=");
+        Serial.print(imuData.euler[0], 3);
+        Serial.print(" pitch=");
+        Serial.print(imuData.euler[1], 3);
+        Serial.print(" yaw=");
+        Serial.println(imuData.euler[2], 3);
+      }
     }
   }
 #endif

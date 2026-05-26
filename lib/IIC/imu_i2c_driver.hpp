@@ -45,7 +45,7 @@ int  IMU_I2C_ReadGyroscope(float out[3]);
 int  IMU_I2C_ReadMagnetometer(float out[3]);
 /** 读取四元数 / Read quaternion */
 int  IMU_I2C_ReadQuaternion(float out[4]);
-/** 读取欧拉角 / Read Euler angles (rad) */
+/** 读取欧拉角 / Read Euler angles (degrees; raw register floats are radians) */
 int  IMU_I2C_ReadEuler(float out[3]);
 /** 读取气压相关数据 / Read barometer-related data */
 int  IMU_I2C_ReadBarometer(float out[4]);
@@ -53,6 +53,8 @@ int  IMU_I2C_ReadBarometer(float out[4]);
 int  IMU_I2C_ReadVersion();
 /** 一次性读取全部数据 / Read all available data in one call */
 int  IMU_I2C_ReadAll(imu_measurement_t *out);
+/** 只读取调试和航向控制最需要的数据 / Read accel and Euler only */
+int  IMU_I2C_ReadEulerAndAccelerometer(imu_measurement_t *out);
 
 /* 校准命令 / Calibration helpers */
 int  IMU_I2C_CalibrationImu(void);

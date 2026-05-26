@@ -3,5 +3,6 @@
 
 void setupRobotBehavior();
 void updateRobotBehavior();
+void startGpsOvalNavigation();
 
 #endif

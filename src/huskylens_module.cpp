@@ -76,7 +76,6 @@ bool readYellowLineBlock(YellowLineBlock& block, int& error) {
   }
 
   if (!husky.available()) {
-    Serial.println("Yellow line lost");
     yellowLineVisible = false;
     return false;
   }
@@ -106,7 +105,6 @@ bool readYellowLineBlock(YellowLineBlock& block, int& error) {
   }
 
   if (!foundBlock) {
-    Serial.println("Yellow line lost");
     yellowLineVisible = false;
     return false;
   }
@@ -158,12 +156,19 @@ void serviceHuskylensColorTest() {
   }
 
 #if ENABLE_HUSKYLENS_SERVO_TEST
-  int correction = errorX * yellowLineSteerGain;
+  int correction = 0;
+  if (abs(errorX) > yellowLineDeadbandPixels) {
+    correction = errorX * kp;
+  }
   correction = constrain(correction, -yellowLineMaxTurn, yellowLineMaxTurn);
   int steer = servoCenter - correction;
 
   setSteeringServo(steer);
-  stopMotor();
+  if (emergencyStop) {
+    stopMotor();
+  } else {
+    setEscSpeed(motorSpeed);
+  }
 #endif
 
   Serial.print("Yellow line visible: yes");
@@ -182,6 +187,10 @@ void serviceHuskylensColorTest() {
   Serial.print(" errorX=");
   Serial.print(errorX);
 #if ENABLE_HUSKYLENS_SERVO_TEST
+  Serial.print(" kp=");
+  Serial.print(kp, 2);
+  Serial.print(" correction=");
+  Serial.print(correction);
   Serial.print(" servo=");
   Serial.println(currentServoPosition);
 #else

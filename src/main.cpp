@@ -7,54 +7,37 @@
 #include "lidar_module.h"
 #include "motor_control.h"
 #include "robot_behavior.h"
-#include "state.h"
 #include "web_dashboard.h"
 
 #if !ENABLE_IMU_STANDALONE_TEST
 
 void setup() {
   Serial.begin(115200);
-  delay(1500);
-  Serial.println("Booting Nimbus firmware");
-
-  loadSavedSettings();
-
-  if(ENABLE_IMU){
-    setupImu();
-  }
-  if (ENABLE_GPS) {
-    setupGps();
-  }
-  if (ENABLE_WEB) {
-    setupWebDashboard();
+  unsigned long serialWaitStart = millis();
+  while (!Serial && millis() - serialWaitStart < 5000) {
+    delay(10);
   }
 
-  if (ENABLE_WEB || ENABLE_ROBOT_BEHAVIOR) {
-    setupMotorControl();
-  }
-
-  if (ENABLE_HUSKYLENS) {
-    setupHuskylens();
-  }
-
-  if (ENABLE_LIDAR) {
-    setupLidar();
-  }
-
+  Serial.println();
+  Serial.println("Booting GPS web monitor firmware");
+  setupGps();
+  setupHuskylens();
+  setupLidar();
+  setupImu();
+  setupMotorControl();
   setupRobotBehavior();
-
-  Serial.println("Ready");
-  Serial.println("Robot starts stopped. Open the web dashboard and press Enable Line Following to drive.");
+  setupWebDashboard();
+  Serial.println("Ready. Open PlatformIO monitor at 115200 baud.");
   Serial.println("WiFi: " WIFI_SSID);
   Serial.println("Open: http://192.168.3.1");
 }
 
 void loop() {
   serviceGps();
+  serviceHuskylensColorTest();
+  updateFrontLidar();
   updateImuCached();
   serviceWebDashboard();
-  updateFrontLidar();
-  serviceHuskylensColorTest();
   updateRobotBehavior();
 }
 

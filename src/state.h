@@ -7,7 +7,8 @@ enum Mode {
   FOLLOW_COLOR,
   AVOID_OBJECT,
   CENTER_AFTER_AVOID,
-  FIND_COLOR
+  FIND_COLOR,
+  GPS_NAV
 };
 
 extern Mode mode;
@@ -23,6 +24,7 @@ extern int servoCenter;
 extern int currentServoPosition;
 extern int imageCenter;
 extern int motorSpeed;
+extern int currentEscOutput;
 extern bool emergencyStop;
 
 extern float frontDistance;
@@ -51,6 +53,12 @@ extern unsigned long lastSerialReport;
 extern unsigned long lastPrintAt;
 extern unsigned long lastHeadingDebugAt;
 extern unsigned long centerAfterAvoidStart;
+
+extern int gpsWaypointIndex;
+extern float gpsDistanceToWaypoint;
+extern float gpsBearingToWaypoint;
+extern float gpsHeadingError;
+extern unsigned long gpsCompletedLoops;
 
 const char* modeName();
 void resetPidState();

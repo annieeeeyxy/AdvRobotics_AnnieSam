@@ -7,11 +7,11 @@
 #define ENABLE_IMU_STANDALONE_TEST 0
 #define ENABLE_WEB 1
 #define ENABLE_IMU 0
-#define ENABLE_LIDAR 0
+#define ENABLE_LIDAR 1
 #define ENABLE_HUSKYLENS 1
-#define ENABLE_ROBOT_BEHAVIOR 0
+#define ENABLE_ROBOT_BEHAVIOR 1
 #define ENABLE_GPS 0
-#define ENABLE_HUSKYLENS_SERVO_TEST 1
+#define ENABLE_HUSKYLENS_SERVO_TEST 0
 
 /************ WiFi ************/
 #define WIFI_SSID "GIGA_PID"
@@ -27,15 +27,19 @@ const int LIDAR_MOTOR_PIN = 5;
 #define IMU_I2C_ADDRESS 0x23           // address shown by I2C scanner
 const int IMU_I2C_SDA_PIN = 20;        // Arduino GIGA Wire1 SDA
 const int IMU_I2C_SCL_PIN = 21;        // Arduino GIGA Wire1 SCL
+#define IMU_DEBUG 1
 
 /************ I2C / HUSKYLENS ************/
 // HUSKYLENS uses the default Wire bus, matching the working DFRobot example.
 
 /************ GPS ************/
-#define GPS_SERIAL_PORT Serial2
-const unsigned long GPS_PRIMARY_BAUD = 115200;
-const unsigned long GPS_FALLBACK_BAUD = 57600;
-const unsigned long GPS_BAUD_SWITCH_MS = 3000;
+#define GPS_SERIAL_PORT Serial3
+const unsigned long GPS_BAUD = 9600; // Change to 4800 here if your GPS module needs it.
+const float GPS_WAYPOINT_REACHED_M = 4.0;
+const float GPS_NAV_STEER_GAIN = 0.9;
+const int GPS_NAV_MAX_TURN = 28;
+const int GPS_NAV_SPEED = 100;
+const float GPS_NAV_MIN_COURSE_SPEED_KMPH = 0.8;
 
 /************ Robot settings ************/
 const int DEFAULT_SERVO_CENTER = 90;
@@ -43,13 +47,17 @@ const int DEFAULT_IMAGE_CENTER = 160;
 const int ESC_NEUTRAL = 90;
 const int SERVO_MIN_ANGLE = 60;
 const int SERVO_MAX_ANGLE = 120;
-const bool START_LINE_TRACKING_ON_BOOT = true;
+const bool START_LINE_TRACKING_ON_BOOT = false;
 
 /************ Yellow line tracking ************/
 const int YELLOW_LINE_TARGET_X = 160;       // HUSKYLENS image width is about 320 pixels
 const int YELLOW_LINE_ID = 1;               // learned yellow line color ID on HUSKYLENS
-const float DEFAULT_YELLOW_LINE_STEER_GAIN = 0.25;  // higher = stronger steering response
-const unsigned long YELLOW_LINE_LOST_GRACE_MS = 700; // keep running through brief camera misses
+const float DEFAULT_YELLOW_LINE_STEER_GAIN = 0.28;  // higher = stronger steering response
+const int YELLOW_LINE_MAX_TURN_DEFAULT = 14;
+const int YELLOW_LINE_MAX_TURN_LIMIT = 18;
+const int YELLOW_LINE_MAX_SERVO_STEP = 5;
+const int YELLOW_LINE_MIN_CORRECTION = 4;
+const bool YELLOW_LINE_REVERSE_STEERING = true;
 
 /************ LiDAR ************/
 const float FRONT_STOP_DIST = 1000.0;  // mm

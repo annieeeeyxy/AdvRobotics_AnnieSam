@@ -19,9 +19,9 @@ static const uint32_t SETTINGS_MAGIC = 0x4C494E45; // "LINE"
 
 Mode mode = FOLLOW_COLOR;
 
-float kp = 0.5f;
+float kp = DEFAULT_YELLOW_LINE_STEER_GAIN;
 float ki = 0.0f;
-float kd = 0.1f;
+float kd = 0.01f;
 float errorSum = 0.0;
 float lastError = 0.0;
 unsigned long lastPidTime = 0;
@@ -30,6 +30,7 @@ int servoCenter = DEFAULT_SERVO_CENTER;
 int currentServoPosition = DEFAULT_SERVO_CENTER;
 int imageCenter = DEFAULT_IMAGE_CENTER;
 int motorSpeed = 100;
+int currentEscOutput = ESC_NEUTRAL;
 bool emergencyStop = !START_LINE_TRACKING_ON_BOOT;
 
 float frontDistance = 10000.0;
@@ -45,9 +46,9 @@ int yellowLineHeight = 0;
 int yellowLineArea = 0;
 int yellowLineErrorX = 0;
 unsigned long yellowLineLastSeenMs = 0;
-int yellowLineDeadbandPixels = 10;
+int yellowLineDeadbandPixels = 4;
 float yellowLineSteerGain = DEFAULT_YELLOW_LINE_STEER_GAIN;
-int yellowLineMaxTurn = 30;
+int yellowLineMaxTurn = YELLOW_LINE_MAX_TURN_DEFAULT;
 
 bool imuReadOk = false;
 float targetYaw = 0.0;
@@ -59,11 +60,18 @@ unsigned long lastPrintAt = 0;
 unsigned long lastHeadingDebugAt = 0;
 unsigned long centerAfterAvoidStart = 0;
 
+int gpsWaypointIndex = 0;
+float gpsDistanceToWaypoint = 0.0;
+float gpsBearingToWaypoint = 0.0;
+float gpsHeadingError = 0.0;
+unsigned long gpsCompletedLoops = 0;
+
 const char* modeName() {
   if (mode == FOLLOW_COLOR) return "FOLLOW_COLOR";
   if (mode == AVOID_OBJECT) return "AVOID_OBJECT";
   if (mode == CENTER_AFTER_AVOID) return "CENTER_AFTER_AVOID";
   if (mode == FIND_COLOR) return "FIND_COLOR";
+  if (mode == GPS_NAV) return "GPS_NAV";
   return "UNKNOWN";
 }
 
@@ -88,7 +96,7 @@ void loadSavedSettings() {
   kd = saved.savedKd;
   motorSpeed = constrain(saved.savedMotorSpeed, 0, 180);
   yellowLineDeadbandPixels = constrain(saved.savedDeadbandPixels, 0, 60);
-  yellowLineMaxTurn = constrain(saved.savedMaxTurn, 0, 35);
+  yellowLineMaxTurn = constrain(saved.savedMaxTurn, 0, YELLOW_LINE_MAX_TURN_LIMIT);
 
   Serial.println("[SETTINGS] Loaded saved line settings");
   Serial.print("[SETTINGS] speed=");

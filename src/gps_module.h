@@ -5,10 +5,16 @@
 
 struct GpsLocation {
   bool hasFix;
+  bool hasReceivedData;
   double latitude;
   double longitude;
   uint32_t satellites;
   double hdop;
+  bool hdopValid;
+  double speedKmph;
+  double courseDeg;
+  double distanceToTargetMeters;
+  double bearingToTargetDeg;
   unsigned long ageMs;
   unsigned long lastFixMs;
   unsigned long charsProcessed;
@@ -16,6 +22,9 @@ struct GpsLocation {
   unsigned long checksumFailures;
   unsigned long baud;
 };
+
+extern double targetLat;
+extern double targetLon;
 
 void setupGps();
 void serviceGps();
